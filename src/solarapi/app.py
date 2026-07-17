@@ -19,7 +19,7 @@ from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from solarapi import queries
+from solarapi import history, queries
 from solarmon.config import Config, load_config
 from solarmon.db import connect
 
@@ -60,6 +60,97 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
     @app.get("/api/settings")
     def settings() -> JSONResponse:
         return JSONResponse(queries.settings_payload(cfg))
+
+    # ------------------------------------------------------------ history --
+
+    @app.get("/api/history/load")
+    def history_load(
+        window: str | None = Query(default=None),
+        t_from: int | None = Query(default=None, alias="from"),
+        t_to: int | None = Query(default=None, alias="to"),
+    ) -> JSONResponse:
+        if window is None and t_from is None:
+            window = "24h"
+        conn = _ro_conn(cfg)
+        try:
+            payload = history.load_series(conn, cfg, window=window, t_from=t_from, t_to=t_to)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=422)
+        finally:
+            conn.close()
+        return JSONResponse(payload)
+
+    @app.get("/api/history/events")
+    def history_events(
+        limit: int = Query(default=50, ge=1, le=200),
+        before_id: int | None = Query(default=None),
+        types: str | None = Query(default=None, description="comma-separated event types"),
+    ) -> JSONResponse:
+        conn = _ro_conn(cfg)
+        try:
+            type_list = [t.strip() for t in types.split(",")] if types else None
+            return JSONResponse(history.events_page(conn, limit, before_id, type_list))
+        finally:
+            conn.close()
+
+    @app.get("/api/history/events/{event_id}/trace")
+    def history_event_trace(event_id: int) -> JSONResponse:
+        conn = _ro_conn(cfg)
+        try:
+            payload = history.event_trace(conn, event_id)
+        finally:
+            conn.close()
+        if payload is None:
+            return JSONResponse({"error": "no such event"}, status_code=404)
+        return JSONResponse(payload)
+
+    @app.get("/api/history/outages")
+    def history_outages(limit: int = Query(default=50, ge=1, le=500)) -> JSONResponse:
+        conn = _ro_conn(cfg)
+        try:
+            return JSONResponse(history.outages_page(conn, limit))
+        finally:
+            conn.close()
+
+    @app.get("/api/history/tou/daily")
+    def history_tou_daily(
+        days: int = Query(default=60, ge=1, le=400),
+        off: float | None = Query(default=None, gt=0),
+        mid: float | None = Query(default=None, gt=0),
+        on: float | None = Query(default=None, gt=0),
+        all_in: float | None = Query(default=None, gt=0),
+    ) -> JSONResponse:
+        conn = _ro_conn(cfg)
+        try:
+            return JSONResponse(
+                history.tou_daily(conn, cfg, days, off=off, mid=mid, on=on, all_in=all_in)
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/history/tou/day")
+    def history_tou_day(
+        date: str = Query(pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        off: float | None = Query(default=None, gt=0),
+        mid: float | None = Query(default=None, gt=0),
+        on: float | None = Query(default=None, gt=0),
+        all_in: float | None = Query(default=None, gt=0),
+    ) -> JSONResponse:
+        conn = _ro_conn(cfg)
+        try:
+            return JSONResponse(
+                history.tou_day(conn, cfg, date, off=off, mid=mid, on=on, all_in=all_in)
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/history/battery/daily")
+    def history_battery_daily(days: int = Query(default=90, ge=1, le=400)) -> JSONResponse:
+        conn = _ro_conn(cfg)
+        try:
+            return JSONResponse(history.battery_daily(conn, cfg, days))
+        finally:
+            conn.close()
 
     @app.get("/api/health")
     def health() -> JSONResponse:

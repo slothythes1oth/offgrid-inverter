@@ -8,6 +8,7 @@ import { useLiveState } from "./hooks/useLiveState";
 import Gallery from "./pages/Gallery";
 import Home from "./pages/Home";
 import Outage from "./pages/Outage";
+import Technical from "./pages/Technical";
 
 // History carries ECharts: code-split so Home/Outage (the pages that matter
 // in an emergency) never pay for the chart library at startup.
@@ -87,6 +88,10 @@ export default function App() {
                 <History stale={stale} />
               </Suspense>
             }
+          />
+          <Route
+            path="/technical"
+            element={<Technical state={state} stale={stale} ageText={ageText} />}
           />
           <Route
             path="/settings"

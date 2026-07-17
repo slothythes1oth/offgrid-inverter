@@ -29,9 +29,24 @@ function ChartIcon(p) {
   );
 }
 
+function GaugeIcon(p) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" {...p}>
+      <path
+        d="M5 17a8 8 0 1114 0M12 13l3.5-3.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="14" r="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 const TABS = [
   { to: "/", label: "Home", Icon: HomeIcon },
   { to: "/history", label: "History", Icon: ChartIcon },
+  { to: "/technical", label: "Technical", Icon: GaugeIcon },
 ];
 
 export default function TabBar() {

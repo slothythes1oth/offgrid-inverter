@@ -96,6 +96,15 @@ def test_recent_samples_capped_and_trimmed(client):
         }
 
 
+def test_diagnostics(client):
+    body = client.get("/api/diagnostics").json()
+    assert body["last_sample_ts"] is not None
+    assert body["collector_start_ts"] is not None
+    assert body["samples_got"] >= 1
+    assert 0 <= body["success_rate_pct"] <= 100
+    assert body["poll_interval_s"] == 5.0
+
+
 def test_health(client):
     body = client.get("/api/health").json()
     assert body["ok"] is True

@@ -152,6 +152,14 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         finally:
             conn.close()
 
+    @app.get("/api/diagnostics")
+    def diagnostics() -> JSONResponse:
+        conn = _ro_conn(cfg)
+        try:
+            return JSONResponse(queries.diagnostics(conn, cfg))
+        finally:
+            conn.close()
+
     @app.get("/api/health")
     def health() -> JSONResponse:
         try:

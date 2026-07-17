@@ -180,6 +180,37 @@ def recent_samples(conn: sqlite3.Connection, window_s: int) -> dict:
     }
 
 
+def diagnostics(conn: sqlite3.Connection, cfg: Config, now: float | None = None) -> dict:
+    """Connection/collector diagnostics for the Technical page. Success rate
+    is measured against the window since the later of (an hour ago, the last
+    collector start), so a fresh start is not unfairly penalized."""
+    now = time.time() if now is None else now
+    latest = latest_sample(conn)
+    start_row = conn.execute(
+        "SELECT ts FROM events WHERE type = 'collector_start' ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    gaps_24h = conn.execute(
+        "SELECT COUNT(*) FROM events WHERE type = 'gap_detected' AND ts >= ?",
+        (now - 86400,),
+    ).fetchone()[0]
+
+    window_start = max(now - 3600, start_row["ts"]) if start_row else now - 3600
+    window_s = max(cfg.polling.interval_s, now - window_start)
+    got = conn.execute("SELECT COUNT(*) FROM samples WHERE ts >= ?", (window_start,)).fetchone()[0]
+    expected = max(1, round(window_s / cfg.polling.interval_s))
+    return {
+        "last_sample_ts": latest["ts"] if latest else None,
+        "last_sample_age_s": round(now - latest["ts"], 1) if latest else None,
+        "collector_start_ts": start_row["ts"] if start_row else None,
+        "poll_interval_s": cfg.polling.interval_s,
+        "samples_window_s": round(window_s),
+        "samples_got": got,
+        "samples_expected": expected,
+        "success_rate_pct": round(min(100.0, got / expected * 100), 1),
+        "gap_events_24h": gaps_24h,
+    }
+
+
 def settings_payload(cfg: Config) -> dict:
     """Safe config subset for the UI. No stick credentials."""
     return {

@@ -162,6 +162,120 @@ map. Phase 1 ships bank-level only; the Technical page shows bank data plus
 a clearly labeled "per-pack data: not yet connected" section. (Future source:
 battery RS232/Bluetooth; out of scope for this build.)
 
+## 8A. Charts (design + behavior, applies to every chart in the app)
+
+Charts get the same design care as the pages. A default ECharts config is not
+acceptable. All charts share one theme module so they look like one product.
+
+Shared theme:
+- Dark background matching the app; no chart border/box. Gridlines faint
+  (low-opacity), horizontal only; no vertical gridlines.
+- Axis labels in the muted secondary text color; tabular-nums; sensible unit
+  suffixes (W, kW, %, V). Y-axis starts at 0 for power/load; auto for voltage.
+- One accent color for the primary series; thresholds and bands use semantic
+  colors (amber = caution, red = danger) consistent with the status system.
+- Smooth line, subtle area gradient fill under it, no data-point dots except
+  on marked peaks/events. Line thin but legible on a phone.
+- Time axis: labels adapt to window (HH:mm for 1h/24h, ddd for 7d, MMM d for
+  30d). Always show the user's local timezone.
+
+Interaction (touch-first):
+- Tap-and-hold / drag shows a tooltip with the value and timestamp at that
+  point; tooltip never runs off-screen on a narrow phone.
+- Pinch to zoom and one-finger pan on the time axis (ECharts dataZoom, inside
+  type). A "reset zoom" affordance appears once zoomed.
+- No hover-only behavior anywhere (phones have no hover).
+
+Data integrity (non-negotiable):
+- Gaps render as GAPS: break the line where samples are missing (connectNulls
+  false). Never interpolate across a collector-down gap. A faint "no data"
+  shading over gap spans is a plus.
+- Short windows (1h, 24h) read raw `samples`; long windows (7d, 30d) read
+  `rollup_1m`; pick the source by window, and when zoomed into a long window
+  far enough, allow fetching finer data for the visible span.
+- Downsample for render so a 30d view never ships hundreds of thousands of
+  points to the phone (server-side bucketing or ECharts sampling); target
+  smooth interaction, < 200ms response to zoom/pan.
+
+Empty / loading / stale states (every chart must handle all three):
+- Loading: skeleton or spinner, never a flash of empty axes.
+- No data yet (fresh install): a friendly "collecting data, check back soon"
+  message, not a broken chart.
+- Stale: if the underlying data is stale, the chart dims slightly and shows
+  the same freshness treatment as the rest of the app.
+
+Per-chart specifics:
+- **Load profile** (History #1): primary series = total load (W/kW). Two
+  horizontal threshold lines via markLine: continuous rating 6500W, and the
+  bypass limit (~40A/leg -> compute the W equivalent, label it). Sampled
+  peaks marked with a labeled point + timestamp, clearly tagged "sampled".
+  Optional secondary faint series: SoC on a right axis, toggleable.
+- **Battery trends** (History #5): daily min/max SoC as a band (area between
+  min and max) with the mean line; DoD shown as a small companion bar or as
+  a summary stat, whichever reads cleaner on mobile.
+- **TOU cost** (History #4): a simple stacked bar by rate band (off/mid/on-
+  peak) per day or per week; keep it a bar, not a line; label totals.
+- Home and Outage pages remain ECharts-free by design. Their visual elements
+  (SoC ring, load gauges, flow diagram, burn-down) are custom SVG per
+  sections 7 and 8B.
+
+## 8B. Signature visualizations (build on 8A; function first, then flourish)
+
+Principles: SVG/CSS-first (no canvas unless a piece cannot hit performance
+targets otherwise); every animation throttled to the poll cadence; respect
+prefers-reduced-motion with a defined static fallback; portrait thumb-zone
+layout; each signature piece has a plain fallback (the pre-8B version) if it
+cannot hit the < 200ms interaction bar on iPhone.
+
+1. **Living energy flow** (Home + Outage, replaces the static flow diagram).
+   Three nodes: grid, battery, home. SVG paths between them carry animated
+   pulses (stroke-dashoffset animation) in the direction of power flow;
+   pulse speed and path thickness scale with watts (3 buckets is enough).
+   Direction comes from the power-balance logic, never the current sign.
+   States: grid->home + grid->battery (normal/charging, green tones);
+   battery->home with grid node dimmed (outage, amber); fault state freezes
+   flow and shows the red status treatment. Reduced motion: static arrows
+   with W labels. Update at poll cadence, no faster.
+2. **Twin-leg headroom lanes** (Outage page; Home keeps the single total bar
+   with small L1/L2 tick marks). Two horizontal lanes, L1 and L2, in amps,
+   filling toward a hard labeled ceiling line at the bypass limit (~40A).
+   Semantic fill colors (green -> amber -> red zones). Leg imbalance must be
+   visible at a glance. Below the lanes: the plain-language available
+   capacity readout from the Outage page spec.
+3. **Outage burn-down** ("will we make it to morning", Outage page, below
+   the runtime hero). Projected SoC line from now toward empty at the
+   smoothed draw, rendered in the 8A chart style. Markers: the low-SoC
+   alert threshold, projected-empty time label, and local sunrise/sunset
+   computed offline from configured lat/long (a small suncalc-style
+   function; no network calls, config stays local). If draw is near zero,
+   show a flat line with "> 24 hrs" instead of a misleading slope.
+4. **TOU day-ring** (History, cost section). A 24-hour clock dial: ring
+   segments colored by the current season's rate bands (off/mid/on-peak,
+   from the TOU engine so it is always correct), radial bars around the
+   ring showing load by hour for the selected day (default: last 24h), and
+   a "now" marker. Rate legend with cents/kWh. If the radial form proves
+   unreadable on a small screen at checkpoint review, the fallback is a
+   24h horizontal band strip with the same coloring.
+5. **Usage calendar heatmap** (History). GitHub-style grid of days colored
+   by daily kWh with a $ toggle (TOU-costed); outage days badged with a
+   bolt icon; tap a day to open that day's load profile. Month view default,
+   scrollable back.
+6. **Fault flight-recorder card** (History, event detail; upgrades the
+   plain expandable snapshot). Tapping a fault event opens a report card:
+   a +/- 10 minute load mini-trace around the event with the trip moment
+   marked, and a facts panel: fault codes with plain-language names,
+   machine state, SoC, per-leg watts/amps at trip. Same card pattern for
+   pack-protection events with the relevant battery numbers.
+7. **High-water marks** (load profile chart). Sampled peaks rendered as
+   small tick + date markers at their height, flood-marker style, always
+   tagged "sampled". Show day/week/all-time marks; declutter below 24h
+   windows.
+8. **State-change theatre** (app-wide). On outage start/end and fault
+   raise/clear, the app's accent temperature and banner transition together
+   so the state change is felt (a shift, not a flash). Reduced motion:
+   instant swap. Never color-only: the banner word and icon always change
+   with it.
+
 ## 9. iPhone / PWA requirements
 
 - PWA manifest + apple-touch-icon; installable to home screen, standalone
@@ -181,7 +295,10 @@ battery RS232/Bluetooth; out of scope for this build.)
   dedupe. Collector logic testable against a fake register source.
 - Structured logging (one line per poll cycle summary; events at INFO).
 - Single config file (config.yaml or .env): stick IP/serial/port/slave id,
-  thresholds, capacity/usable fraction, TOU rates, ntfy topic, retention.
+  thresholds, capacity/usable fraction, TOU rates, ntfy topic, retention,
+  and location lat/long for the offline sunrise math (default: Bracebridge,
+  ON: 45.04, -79.31). Location is used only in the local sunrise formula
+  and never leaves the machine.
 - Simple versioned schema migrations (a migrations table + numbered SQL).
 - Frontend: Vite + React + Tailwind + ECharts; SSE for live data (EventSource
   reconnects natively); component structure per page; no state library

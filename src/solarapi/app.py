@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import sqlite3
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -68,8 +69,6 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
                 row = queries.latest_sample(conn)
             finally:
                 conn.close()
-            import time
-
             age = None if row is None else round(time.time() - row["ts"], 1)
             return JSONResponse({"ok": True, "db": "reachable", "latest_sample_age_s": age})
         except Exception as e:  # DB missing / locked / corrupt: report, don't crash
@@ -96,8 +95,6 @@ async def _event_stream(cfg: Config) -> AsyncIterator[str]:
     last_emit = 0.0
     yield "retry: 5000\n\n"
     while True:
-        import time
-
         now = time.time()
         conn = _ro_conn(cfg)
         try:

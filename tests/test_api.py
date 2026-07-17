@@ -7,6 +7,7 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from tests.conftest import REPO_ROOT, FakeClock, run_polls
 
 from solarapi.app import create_app
 from solarapi.queries import build_current
@@ -14,7 +15,6 @@ from solarmon.collector import Collector
 from solarmon.config import load_config
 from solarmon.db import connect, open_for_collector
 from solarmon.fake_source import FakeSource
-from tests.conftest import REPO_ROOT, FakeClock, run_polls
 
 
 @pytest.fixture

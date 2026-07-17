@@ -128,6 +128,9 @@ export function primaryLineSeries(data, { name = "Load" } = {}) {
     data,
     connectNulls: false,
     showSymbol: false,
+    // Server already buckets to <= ~2200 points; lttb is insurance that deep
+    // pinch-zoom stays smooth on a phone if payloads ever grow.
+    sampling: "lttb",
     smooth: 0.25,
     lineStyle: { color: t.accent, width: 1.6 },
     itemStyle: { color: t.accent },

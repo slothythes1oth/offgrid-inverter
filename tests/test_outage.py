@@ -69,6 +69,25 @@ def test_restart_resumes_open_outage(cfg, conn, clock):
     assert len(events_of(conn, "grid_lost")) == 1
 
 
+def test_fault_during_outage_does_not_end_it(make_collector, clock, conn):
+    """State 10 (Fault) with grid still absent: the outage continues."""
+    src = _grid_up_source()
+    col = make_collector(src)
+    run_polls(col, clock, 3)
+    src.set_grid(False)
+    run_polls(col, clock, 4)  # outage active
+    src.raise_fault(13)  # machine_state -> 10, grid still 0 V
+    run_polls(col, clock, 6)
+    rows = outage_rows(conn)
+    assert len(rows) == 1
+    assert rows[0]["ended_ts"] is None  # still open
+    src.clear_faults()
+    src.set_grid(True)
+    run_polls(col, clock, 3)
+    rows = outage_rows(conn)
+    assert len(rows) == 1 and rows[0]["ended_ts"] is not None
+
+
 def test_low_soc_fires_once_per_outage(make_collector, clock, conn):
     src = _grid_up_source()
     col = make_collector(src)

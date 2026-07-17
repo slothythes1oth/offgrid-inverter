@@ -78,6 +78,8 @@ class AlertManager:
 
 
 def fmt_duration(seconds: int) -> str:
+    if seconds < 60:
+        return f"{int(seconds)}s"
     m, _ = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
     return f"{h}h {m:02d}m" if h else f"{m}m"

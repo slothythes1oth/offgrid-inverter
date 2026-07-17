@@ -144,7 +144,7 @@ class Collector:
                 self.estimator.reset()
                 self.alerts.alert_once(
                     "outage",
-                    "Grid lost — on battery",
+                    "Grid lost - on battery",
                     f"SoC {sample.soc}%, load {sample.load_w_total} W.",
                     PRIORITY_CRITICAL,
                 )

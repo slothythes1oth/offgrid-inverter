@@ -24,8 +24,13 @@ def grid_present(sample: Sample) -> bool:
 
 
 def on_battery(sample: Sample) -> bool:
-    """SPEC intent: grid down AND the inverter is powering the load."""
-    return not grid_present(sample) and sample.machine_state in INVERTING_STATES
+    """SPEC intent: grid down AND the inverter is not running from mains.
+
+    Grid voltage is the primary signal; the state check only guards against a
+    spurious 0 V reading while the unit itself says it is mains-powered. Any
+    non-mains state counts (inverting, transitions, or Fault 10: a fault
+    during an outage does not mean the grid came back)."""
+    return not grid_present(sample) and sample.machine_state not in MAINS_STATES
 
 
 def flow(sample: Sample) -> str:

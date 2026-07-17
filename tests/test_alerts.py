@@ -72,5 +72,6 @@ def test_send_failure_never_raises():
 
 
 def test_fmt_duration():
+    assert fmt_duration(15) == "15s"
     assert fmt_duration(90) == "1m"
     assert fmt_duration(6003) == "1h 40m"

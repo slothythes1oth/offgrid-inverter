@@ -57,21 +57,24 @@ def active_outage(conn: sqlite3.Connection) -> sqlite3.Row | None:
 def _drain_and_runtime(
     conn: sqlite3.Connection, cfg: Config, latest: sqlite3.Row, outage: sqlite3.Row
 ) -> dict:
-    """Drain rate (%/hr) and runtime remaining, computed from the trailing
-    window of samples during the current outage."""
+    """Drain rate and runtime remaining for the active outage.
+
+    Drain rate is the outage-wide average (soc_start - soc_now)/elapsed: SoC
+    is a coarse integer, so a short trailing window is either jumpy or absurd;
+    the whole-outage slope is stable and answers "how fast is it going down".
+    Runtime uses a recent-window mean load so it tracks the current draw."""
+    elapsed_h = (latest["ts"] - outage["started_ts"]) / 3600.0
+    drain_pct_per_hr = None
+    if elapsed_h > 0 and outage["soc_start"] is not None:
+        drop = outage["soc_start"] - latest["soc"]  # positive while discharging
+        if drop > 0:
+            drain_pct_per_hr = round(drop / elapsed_h, 1)
+
     window_start = max(latest["ts"] - _DRAIN_WINDOW_S, outage["started_ts"])
     rows = conn.execute(
-        "SELECT ts, soc, load_w_total FROM samples WHERE ts >= ? ORDER BY ts",
+        "SELECT load_w_total FROM samples WHERE ts >= ? ORDER BY ts",
         (window_start,),
     ).fetchall()
-
-    drain_pct_per_hr = None
-    if len(rows) >= 2:
-        span_h = (rows[-1]["ts"] - rows[0]["ts"]) / 3600.0
-        if span_h > 0:
-            drop = rows[0]["soc"] - rows[-1]["soc"]  # positive while discharging
-            drain_pct_per_hr = round(drop / span_h, 1)
-
     smoothed_draw_w = (
         sum(r["load_w_total"] for r in rows) / len(rows) if rows else latest["load_w_total"]
     )

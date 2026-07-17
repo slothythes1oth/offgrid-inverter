@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens. Dark is the default (SPEC section 7); a light-mode phone
+ * flips them via prefers-color-scheme. One accent color. Status colors are
+ * only ever used alongside an icon + word, never color alone.
+ */
+:root {
+  --bg: #0b0f14;
+  --surface: #151b23;
+  --surface-2: #1d2530;
+  --border: #2a333f;
+  --text: #eef2f6;
+  --muted: #8b97a6;
+  --accent: #3b9dff;
+  --ok: #34c759;
+  --warn: #ffb020;
+  --danger: #ff453a;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f2f4f7;
+    --surface: #ffffff;
+    --surface-2: #eef1f5;
+    --border: #d9dee6;
+    --text: #0b0f14;
+    --muted: #5c6673;
+    --accent: #0a6cff;
+    --ok: #1e9e46;
+    --warn: #b7791f;
+    --danger: #d93025;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* All live numeric values line up and don't jitter as digits change. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Safe-area helpers for the notch / home indicator. */
+.safe-t {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-b {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}

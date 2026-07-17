@@ -1,0 +1,58 @@
+import { useEffect, useRef, useState } from "react";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+
+import { Freshness } from "./components/primitives";
+import { fmtAge } from "./format";
+import { useLiveState } from "./hooks/useLiveState";
+import Gallery from "./pages/Gallery";
+import Home from "./pages/Home";
+import Outage from "./pages/Outage";
+
+export default function App() {
+  const { state, ageS, connected } = useLiveState();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const prevOutage = useRef(false);
+  const [justRestored, setJustRestored] = useState(false);
+
+  const outageActive = !!state?.outage?.active;
+
+  // Auto-switch to Outage when one is active; return Home on restore with a
+  // brief confirmation. The gallery route opts out of auto-switching.
+  useEffect(() => {
+    if (location.pathname === "/gallery") return;
+    if (outageActive && location.pathname !== "/outage") {
+      navigate("/outage");
+    } else if (!outageActive && prevOutage.current) {
+      setJustRestored(true);
+      navigate("/");
+      const id = setTimeout(() => setJustRestored(false), 8000);
+      return () => clearTimeout(id);
+    }
+    prevOutage.current = outageActive;
+  }, [outageActive, location.pathname, navigate]);
+
+  const stale = state ? state.stale || (ageS != null && ageS > 30) : true;
+  const ageText = fmtAge(ageS);
+
+  return (
+    <div className="min-h-[100dvh] safe-x safe-b flex flex-col">
+      <header className="safe-t px-4 pt-3 pb-2 flex items-center justify-between">
+        <span className="text-sm font-semibold text-muted">Home Backup</span>
+        <Freshness ageText={ageText} connected={connected} />
+      </header>
+      <main className="flex-1 px-4 pb-4">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Home state={state} stale={stale} ageText={ageText} justRestored={justRestored} />
+            }
+          />
+          <Route path="/outage" element={<Outage state={state} stale={stale} ageText={ageText} />} />
+          <Route path="/gallery" element={<Gallery />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}

@@ -96,6 +96,58 @@ hammers. If that error persists across several cycles, power-cycle the stick.
                                            # source + throwaway DB, dry-run alerts
 ```
 
+## Dashboard (phase 2: API + web app)
+
+A separate, read-only web app: a FastAPI backend that reads the collector's
+SQLite database (never the stick) and a React (Vite + Tailwind) frontend with
+a live SSE stream. The collector and the web app are independent processes.
+
+### Run it
+
+```powershell
+# 1. Build the frontend once (outputs web/dist, which the API serves)
+cd web ; npm install ; npm run build ; cd ..
+
+# 2. Start the API (serves the API + the built frontend on one port)
+.venv\Scripts\python -m solarmon-web            # or: python -m solarapi
+#   defaults: host 0.0.0.0 (LAN), port 8080
+```
+
+Then open `http://<laptop-LAN-ip>:8080/` on your phone (find the IP with
+`ipconfig`). The collector must also be running for live data.
+
+For frontend development with hot reload: `cd web ; npm run dev` (Vite proxies
+`/api` to the backend on 8080).
+
+### Install to your iPhone home screen
+
+Open the URL in Safari > Share > Add to Home Screen. It launches standalone
+(no browser chrome), dark, with the status bar over the app background, and
+respects the notch safe areas.
+
+### Endpoints
+
+`GET /api/current` (decoded state + derived), `/api/samples/recent`,
+`/api/settings`, `/api/health`, `/api/stream` (SSE). All read-only.
+Add `?snapshot` to any page URL to load a single frame instead of the live
+stream (handy for debugging / headless capture).
+
+### Notes
+
+- Freshness is driven by data age, not connection state: if the collector
+  dies, the UI shows the stale banner within seconds and grays the last
+  values, even though the SSE socket is still open. It recovers on its own
+  when the collector returns (no reload).
+- `npm audit` reports two advisories in the Vite/esbuild dev-server chain.
+  They affect the dev server only (a malicious site you visit while
+  `npm run dev` is running could reach it); the production artifact FastAPI
+  serves is static files with no esbuild. Not fixed here because the only fix
+  is a two-major Vite bump. Don't run `npm run dev` on an untrusted network.
+- Per-pack battery health (SoC/temp/cell voltages) is not in the inverter's
+  register map, so the Home health strip shows bank-level data (fault state +
+  battery voltage) rather than the "3 packs OK - 24C" mock in the spec. That
+  gains real data when the battery RS232/BT feed is added.
+
 ## Known limits (v1, by design)
 
 - **Sleeping laptop = no data, no alerts.** Gaps are recorded and shown as

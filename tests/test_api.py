@@ -125,6 +125,39 @@ def test_outage_payload_when_on_battery(tmp_path):
     assert body["outage"]["runtime_remaining_h"] is not None
 
 
+def test_drain_rate_is_outage_wide_and_sane(tmp_path):
+    """Drain rate is the whole-outage average, not a jumpy trailing window."""
+    db = tmp_path / "drain.db"
+    conn = open_for_collector(db)
+    cfg = load_config(REPO_ROOT / "config.yaml")
+    start = 1_784_700_000
+    # Outage started 2h ago at 90%, now at 80% -> 5%/hr; on battery, 500 W load.
+    conn.execute(
+        "INSERT INTO outages (started_ts, soc_start, soc_end, kwh_used) VALUES (?,90,80,1.0)",
+        (start,),
+    )
+    for i in range(0, 7200, 5):
+        soc = 90 - (i / 7200) * 10
+        conn.execute(
+            "INSERT INTO samples (ts, soc, batt_v, batt_a, batt_w, pv1_w, pv2_w, grid_v_l1,"
+            " grid_v_l2, load_w_l1, load_w_l2, load_w_total, load_pct_l1, load_pct_l2,"
+            " machine_state, fault_active) VALUES (?,?,52.0,9.6,499.2,0,0,0,0,250,250,500,9,9,5,0)",
+            (start + i, round(soc)),
+        )
+    conn.commit()
+    conn.close()
+
+    ro = connect(db, read_only=True)
+    try:
+        body = build_current(ro, cfg, now=start + 7200 + 3)
+    finally:
+        ro.close()
+    o = body["outage"]
+    assert o["active"] is True
+    assert 4.0 <= o["drain_pct_per_hr"] <= 6.0  # ~5%/hr, not an absurd spike
+    assert o["runtime_remaining_h"] is not None
+
+
 def test_stream_emits_state_event(seeded_db, tmp_path):
     """Drive the SSE generator directly: it is an infinite stream, so pull the
     opening frames with a timeout rather than via TestClient (which buffers)."""

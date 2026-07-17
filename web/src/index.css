@@ -57,6 +57,96 @@ body {
   font-feature-settings: "tnum";
 }
 
+/*
+ * Living energy flow (SPEC 8B.1). The pulse is a dash marching along the
+ * path; --dur is set per watt-bucket by the component. Data only changes at
+ * poll cadence; the animation itself is continuous CSS (compositor-cheap).
+ */
+.flow-path {
+  fill: none;
+  stroke-linecap: round;
+}
+.flow-active {
+  stroke-dasharray: 5 9;
+  animation: flow-dash var(--dur, 1.6s) linear infinite;
+}
+/* Fault state: freeze the flow (SPEC 8B.1). */
+.flow-frozen {
+  animation-play-state: paused;
+}
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -14; /* one dash+gap period per cycle, toward the target */
+  }
+}
+
+/*
+ * State-change theatre (SPEC 8B.8). On outage/restore and fault transitions
+ * the whole app takes a brief color wash while the accent temperature shifts
+ * with it (elements below carry their own color transitions, so the change
+ * is a shift, not a flash). The banner word + icon always change too; never
+ * color alone.
+ */
+[data-app-state="outage"] {
+  --accent: #ffa626;
+}
+[data-app-state="fault"] {
+  --accent: #ff5c52;
+}
+.theatre-color {
+  transition:
+    background 0.8s ease,
+    border-color 0.8s ease,
+    color 0.8s ease;
+}
+.theatre-wash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0;
+  background: radial-gradient(120% 90% at 50% 0%, var(--wash, transparent), transparent 65%);
+  animation: theatre-wash 1.4s ease-out forwards;
+}
+.theatre-wash[data-wash="warn"] {
+  --wash: color-mix(in srgb, var(--warn) 50%, transparent);
+}
+.theatre-wash[data-wash="danger"] {
+  --wash: color-mix(in srgb, var(--danger) 50%, transparent);
+}
+.theatre-wash[data-wash="ok"] {
+  --wash: color-mix(in srgb, var(--ok) 45%, transparent);
+}
+@keyframes theatre-wash {
+  0% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/*
+ * Reduced motion (SPEC 8B): defined static fallbacks, not just "less".
+ * Flow paths become solid static arrows (arrowheads + W labels are always
+ * rendered); the theatre wash is dropped so state changes swap instantly.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .flow-active {
+    stroke-dasharray: none;
+    animation: none;
+  }
+  .theatre-wash {
+    animation: none;
+  }
+  .theatre-color {
+    transition: none;
+  }
+}
+
 /* Safe-area helpers for the notch / home indicator. */
 .safe-t {
   padding-top: env(safe-area-inset-top);

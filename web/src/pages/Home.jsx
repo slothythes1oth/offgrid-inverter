@@ -1,6 +1,6 @@
+import EnergyFlow from "../components/EnergyFlow";
 import {
   Card,
-  FlowDiagram,
   HealthStrip,
   LoadGauge,
   SocRing,
@@ -44,13 +44,24 @@ export default function Home({ state, stale, ageText, justRestored }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Card title="Current load">
-          <LoadGauge value={load} max={cont} threshold={cont} label={null} />
+          <LoadGauge
+            value={load}
+            max={cont}
+            threshold={cont}
+            label={null}
+            legs={{ l1W: state?.load_w_l1, l2W: state?.load_w_l2 }}
+          />
           <div className="text-muted text-xs mt-2">
             safe to {(cont / 1000).toFixed(1)} kW
           </div>
         </Card>
         <Card title="Power flow">
-          <FlowDiagram flow={state?.flow} />
+          <EnergyFlow
+            flow={state?.flow}
+            fault={state?.fault_active}
+            loadW={load}
+            battW={state?.batt_w}
+          />
         </Card>
       </div>
 

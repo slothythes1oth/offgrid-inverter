@@ -38,6 +38,17 @@ class BatteryConfig(BaseModel):
 class ThresholdsConfig(BaseModel):
     continuous_load_w: int = Field(default=6500, gt=0)
     low_soc_alert_pct: int = Field(default=40, ge=1, le=99)
+    # Bypass relay limit per 120 V leg. Drives the twin-leg headroom lanes
+    # (SPEC 8B.2) and the bypass threshold line on the load chart (SPEC 8A).
+    bypass_amps_per_leg: int = Field(default=40, gt=0)
+
+
+class LocationConfig(BaseModel):
+    """Used ONLY by the offline sunrise/sunset math (SPEC 8B.3). Never sent
+    anywhere; no network call ever depends on it."""
+
+    lat: float = Field(default=45.04, ge=-90, le=90)
+    lon: float = Field(default=-79.31, ge=-180, le=180)
 
 
 class OutageConfig(BaseModel):
@@ -101,6 +112,7 @@ class Config(BaseModel):
     polling: PollingConfig = PollingConfig()
     battery: BatteryConfig
     thresholds: ThresholdsConfig = ThresholdsConfig()
+    location: LocationConfig = LocationConfig()
     outage: OutageConfig = OutageConfig()
     runtime_estimator: RuntimeEstimatorConfig = RuntimeEstimatorConfig()
     tou: TouConfig

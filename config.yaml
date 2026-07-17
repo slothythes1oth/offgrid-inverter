@@ -24,6 +24,13 @@ battery:
 thresholds:
   continuous_load_w: 6500   # inverter continuous rating, for load-vs-safe-zone
   low_soc_alert_pct: 40     # alert when SoC drops below this during an outage
+  bypass_amps_per_leg: 40   # bypass relay limit per 120V leg (headroom lanes, chart line)
+
+location:
+  # Only used by the offline sunrise/sunset formula on the outage burn-down.
+  # Never leaves this machine; no network calls.
+  lat: 45.04                # Bracebridge, ON
+  lon: -79.31
 
 outage:
   debounce_polls: 3         # ~15s at 5s/poll before an outage is declared/ended

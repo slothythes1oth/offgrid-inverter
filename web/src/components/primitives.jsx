@@ -25,15 +25,15 @@ export function StatusBanner({ level, word, icon, sub }) {
   const color = LEVEL_COLOR[level] || LEVEL_COLOR.ok;
   return (
     <div
-      className="rounded-2xl px-5 py-4 flex items-center gap-3"
+      className="rounded-2xl px-5 py-4 flex items-center gap-3 theatre-color"
       style={{ background: `color-mix(in srgb, ${color} 16%, var(--surface))`, borderLeft: `5px solid ${color}` }}
       role="status"
     >
-      <span style={{ color }} className="shrink-0">
+      <span style={{ color }} className="shrink-0 theatre-color">
         <Icon width={32} height={32} />
       </span>
       <div className="min-w-0">
-        <div className="text-2xl font-bold tracking-tight" style={{ color }}>
+        <div className="text-2xl font-bold tracking-tight theatre-color" style={{ color }}>
           {word}
         </div>
         {sub && <div className="text-muted text-sm truncate">{sub}</div>}
@@ -76,12 +76,16 @@ export function SocRing({ soc, size = 200, stroke = 16, label = "State of charge
   );
 }
 
-// Horizontal load gauge with a safe-zone threshold marker.
-export function LoadGauge({ value, max, threshold, label, big = false }) {
+// Horizontal load gauge with a safe-zone threshold marker. `legs` (SPEC 8B.2,
+// Home) adds small L1/L2 tick marks on the single total bar: a divider tick
+// where L1 ends and L2 begins, plus a tiny per-leg caption.
+export function LoadGauge({ value, max, threshold, label, big = false, legs = null }) {
   const pct = Math.max(0, Math.min(100, ((value ?? 0) / max) * 100));
   const tPct = threshold ? Math.min(100, (threshold / max) * 100) : null;
   const over = threshold != null && value > threshold;
   const color = over ? "var(--danger)" : pct > 75 ? "var(--warn)" : "var(--accent)";
+  const l1Pct =
+    legs && legs.l1W != null ? Math.max(0, Math.min(pct, (legs.l1W / max) * 100)) : null;
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1">
@@ -95,6 +99,13 @@ export function LoadGauge({ value, max, threshold, label, big = false }) {
           className="h-full rounded-full"
           style={{ width: `${pct}%`, background: color, transition: "width 0.5s ease, background 0.3s" }}
         />
+        {l1Pct != null && l1Pct > 0 && l1Pct < pct && (
+          <div
+            className="absolute top-0 bottom-0 w-px"
+            style={{ left: `${l1Pct}%`, background: "var(--bg)", opacity: 0.9 }}
+            title="L1 / L2 split"
+          />
+        )}
         {tPct != null && (
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-text/70"
@@ -103,6 +114,12 @@ export function LoadGauge({ value, max, threshold, label, big = false }) {
           />
         )}
       </div>
+      {legs && (
+        <div className="tnum text-muted mt-1" style={{ fontSize: "0.65rem" }}>
+          L1 {legs.l1W == null ? "--" : Math.round(legs.l1W)} W · L2{" "}
+          {legs.l2W == null ? "--" : Math.round(legs.l2W)} W
+        </div>
+      )}
     </div>
   );
 }

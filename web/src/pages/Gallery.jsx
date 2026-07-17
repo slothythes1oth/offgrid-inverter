@@ -1,6 +1,8 @@
+import BurnDown from "../components/BurnDown";
+import EnergyFlow from "../components/EnergyFlow";
+import HeadroomLanes from "../components/HeadroomLanes";
 import {
   Card,
-  FlowDiagram,
   Freshness,
   HealthStrip,
   LoadGauge,
@@ -8,6 +10,12 @@ import {
   StaleBanner,
   StatusBanner,
 } from "../components/primitives";
+
+const NOW = Date.now() / 1000;
+const DEMO_SUNS = [
+  { type: "sunrise", ts: NOW + 8.2 * 3600 },
+  { type: "sunset", ts: NOW + 21.5 * 3600 },
+];
 
 // /gallery — every primitive in every state, for review on the phone before
 // the pages are trusted. Not linked from the app; open it directly.
@@ -46,12 +54,54 @@ export default function Gallery() {
         </Card>
       </section>
 
-      <section className="grid grid-cols-2 gap-3">
-        <Card title="Power flow">
-          <FlowDiagram flow="battery_to_house" />
+      <section className="flex flex-col gap-2">
+        <h2 className="text-muted text-sm">Living energy flow (8B.1) — normal / charging / outage / fault / idle</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <Card title="Grid → home">
+            <EnergyFlow flow="grid_to_house" fault={false} loadW={466} battW={0} />
+          </Card>
+          <Card title="Charging">
+            <EnergyFlow flow="grid_to_battery" fault={false} loadW={466} battW={-795} />
+          </Card>
+          <Card title="Outage">
+            <EnergyFlow flow="battery_to_house" fault={false} loadW={2170} battW={2170} />
+          </Card>
+          <Card title="Fault (frozen)">
+            <EnergyFlow flow="grid_to_house" fault={true} loadW={5900} battW={0} />
+          </Card>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-muted text-sm">Twin-leg headroom lanes (8B.2)</h2>
+        <Card title="Balanced, comfortable">
+          <HeadroomLanes l1A={6.5} l2A={5.1} limitA={40} availW={5100} />
         </Card>
-        <Card title="Power flow">
-          <FlowDiagram flow="grid_to_battery" />
+        <Card title="Imbalanced, L1 hot">
+          <HeadroomLanes l1A={31} l2A={7} limitA={40} availW={1900} />
+        </Card>
+        <Card title="Near the ceiling">
+          <HeadroomLanes l1A={38} l2A={22} limitA={40} availW={0} />
+        </Card>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-muted text-sm">Outage burn-down (8B.3)</h2>
+        <Card title="Draining — sunrise before empty">
+          <BurnDown soc={48} runtimeH={11.5} capped={false} lowSocPct={40} sunEvents={DEMO_SUNS} nowTs={NOW} />
+        </Card>
+        <Card title="Draining fast — empty before sunrise">
+          <BurnDown soc={35} runtimeH={3.2} capped={false} lowSocPct={40} sunEvents={DEMO_SUNS} nowTs={NOW} />
+        </Card>
+        <Card title="Near-zero draw">
+          <BurnDown soc={92} runtimeH={null} capped={true} lowSocPct={40} sunEvents={DEMO_SUNS} nowTs={NOW} />
+        </Card>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-muted text-sm">Load gauge with L1/L2 ticks (8B.2, Home)</h2>
+        <Card>
+          <LoadGauge value={2170} max={6500} threshold={6500} label="with legs" legs={{ l1W: 1700, l2W: 470 }} />
         </Card>
       </section>
 

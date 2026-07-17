@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import { startDemo } from "../demo";
+
 // Subscribes to /api/stream via EventSource (which reconnects natively on
 // drop). Returns { state, ageS, connected }.
 //
@@ -14,10 +16,23 @@ export function useLiveState() {
   const received = useRef({ ts: null, ageAtRecv: 0, recvAt: 0 });
 
   useEffect(() => {
+    // Demo mode: ?demo=<mode> fabricates state in the browser (see demo.js).
+    // Simulated outage review per checkpoint rules: the collector, the stick,
+    // and the DB are never involved.
+    const params = new URLSearchParams(window.location.search);
+    const demo = params.get("demo");
+    if (demo) {
+      setConnected(true);
+      return startDemo(demo, (data) => {
+        setState(data);
+        received.current = { ts: data.ts, ageAtRecv: 0, recvAt: Date.now() };
+      });
+    }
+
     // Debug/snapshot mode: ?snapshot fetches /api/current once and skips the
     // live stream. Lets headless tools render a settled page (the always-open
     // SSE connection otherwise keeps the page from ever going network-idle).
-    const snapshot = new URLSearchParams(window.location.search).has("snapshot");
+    const snapshot = params.has("snapshot");
     if (snapshot) {
       fetch("/api/current")
         .then((r) => r.json())

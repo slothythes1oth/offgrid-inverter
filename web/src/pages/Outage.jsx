@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
 
-import { Card, LoadGauge, SocRing, StaleBanner } from "../components/primitives";
+import BurnDown from "../components/BurnDown";
+import EnergyFlow from "../components/EnergyFlow";
+import HeadroomLanes from "../components/HeadroomLanes";
+import { Card, SocRing, StaleBanner } from "../components/primitives";
 import { fmtDuration, fmtHours } from "../format";
 
 // Outage: the runtime number is the biggest thing in the app. Higher contrast
 // and larger type than Home so a non-technical family member can read it fast.
+// 8B retrofit: burn-down below the hero (8B.3), twin-leg headroom lanes with
+// the available-capacity readout (8B.2), living flow in its outage state.
 export default function Outage({ state, stale, ageText }) {
   const o = state?.outage;
   const [tick, setTick] = useState(0);
@@ -23,7 +28,7 @@ export default function Outage({ state, stale, ageText }) {
   return (
     <div className="flex flex-col gap-4 max-w-md mx-auto w-full">
       <div
-        className="rounded-2xl px-5 py-3 text-center font-bold text-lg"
+        className="rounded-2xl px-5 py-3 text-center font-bold text-lg theatre-color"
         style={{ background: "color-mix(in srgb, var(--warn) 20%, var(--surface))", color: "var(--warn)" }}
         role="status"
       >
@@ -43,6 +48,18 @@ export default function Outage({ state, stale, ageText }) {
         <div className="text-muted mt-2">at current load</div>
       </Card>
 
+      {/* Burn-down: will we make it to morning (SPEC 8B.3) */}
+      <Card title="Battery projection">
+        <BurnDown
+          soc={state?.soc}
+          runtimeH={o?.runtime_remaining_h}
+          capped={o?.runtime_capped}
+          lowSocPct={o?.low_soc_pct ?? 40}
+          sunEvents={o?.sun_events ?? []}
+          nowTs={state?.ts}
+        />
+      </Card>
+
       <div className="grid grid-cols-2 gap-3 items-center">
         <Card className="grid place-items-center">
           <SocRing soc={state?.soc} size={150} stroke={14} />
@@ -58,16 +75,32 @@ export default function Outage({ state, stale, ageText }) {
         </Card>
       </div>
 
-      <Card title="Load vs capacity">
-        <LoadGauge value={load} max={cont} threshold={cont} label={null} big />
-        <div className="mt-3 text-lg">
-          <span className="text-muted">Available: </span>
-          <span className="tnum font-semibold">
-            ~{(availW / 1000).toFixed(1)} kW free
+      {/* Twin-leg headroom lanes toward the bypass ceiling (SPEC 8B.2) */}
+      <Card
+        title={
+          <span className="flex items-baseline justify-between">
+            <span>Headroom per leg</span>
+            <span className="tnum">{load == null ? "--" : Math.round(load)} W total</span>
           </span>
-        </div>
-        <div className="text-muted text-xs mt-1">
-          room to turn things on before the {(cont / 1000).toFixed(1)} kW limit
+        }
+      >
+        <HeadroomLanes
+          l1A={state?.load_a_l1}
+          l2A={state?.load_a_l2}
+          limitA={state?.headroom?.bypass_a_per_leg ?? 40}
+          availW={availW}
+          continuousW={cont}
+        />
+      </Card>
+
+      <Card title="Power flow">
+        <div className="max-w-[15rem] mx-auto">
+          <EnergyFlow
+            flow={state?.flow}
+            fault={state?.fault_active}
+            loadW={load}
+            battW={state?.batt_w}
+          />
         </div>
       </Card>
 

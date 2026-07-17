@@ -15,9 +15,15 @@ from solarmon.config import Config
 from solarmon.derived import flow, on_battery
 from solarmon.registers import MACHINE_STATES, Sample
 from solarmon.runtime_est import CAP_HOURS, MIN_DRAW_W
+from solarmon.sun import next_sun_events
 
 # Trailing window for "current" drain rate and smoothed draw (seconds).
 _DRAIN_WINDOW_S = 600
+
+# Per-leg amps are derived at nominal leg voltage: the output-voltage register
+# is not in the proven map, and the headroom lanes measure proximity to a
+# 40 A relay limit, where a few percent of voltage sag is immaterial.
+NOMINAL_LEG_V = 120.0
 
 
 def _row_to_sample(row: sqlite3.Row) -> Sample:
@@ -132,9 +138,13 @@ def build_current(conn: sqlite3.Connection, cfg: Config, now: float | None = Non
         "fault_active": sample.fault_active,
         "on_battery": on_battery(sample),
         "flow": flow(sample),
+        "load_a_l1": round(sample.load_w_l1 / NOMINAL_LEG_V, 1),
+        "load_a_l2": round(sample.load_w_l2 / NOMINAL_LEG_V, 1),
         "headroom": {
             "continuous_load_w": cfg.thresholds.continuous_load_w,
             "available_w": max(0, cfg.thresholds.continuous_load_w - sample.load_w_total),
+            "bypass_a_per_leg": cfg.thresholds.bypass_amps_per_leg,
+            "bypass_w_per_leg": round(cfg.thresholds.bypass_amps_per_leg * NOMINAL_LEG_V),
         },
     }
 
@@ -146,6 +156,7 @@ def build_current(conn: sqlite3.Connection, cfg: Config, now: float | None = Non
             "elapsed_s": elapsed,
             "soc_start": outage_row["soc_start"],
             "low_soc_pct": cfg.thresholds.low_soc_alert_pct,
+            "sun_events": next_sun_events(cfg.location.lat, cfg.location.lon, now),
             **_drain_and_runtime(conn, cfg, latest, outage_row),
         }
     else:
@@ -181,6 +192,11 @@ def settings_payload(cfg: Config) -> dict:
         "thresholds": {
             "continuous_load_w": cfg.thresholds.continuous_load_w,
             "low_soc_alert_pct": cfg.thresholds.low_soc_alert_pct,
+            "bypass_a_per_leg": cfg.thresholds.bypass_amps_per_leg,
+            "bypass_w_per_leg": round(cfg.thresholds.bypass_amps_per_leg * NOMINAL_LEG_V),
         },
         "timezone": cfg.tou.timezone,
+        # Real sun events here too, so the demo/simulated outage review can
+        # show tonight's actual sunrise without a live outage in the DB.
+        "sun_events": next_sun_events(cfg.location.lat, cfg.location.lon, time.time()),
     }

@@ -55,6 +55,11 @@ def test_current_shape(client):
     assert body["machine_state_name"]
     assert body["outage"] is None
     assert body["headroom"]["available_w"] > 0
+    # 8B retrofit fields: per-leg amps + bypass ceiling for the headroom lanes.
+    assert body["headroom"]["bypass_a_per_leg"] == 40
+    assert body["headroom"]["bypass_w_per_leg"] == 4800
+    assert body["load_a_l1"] == pytest.approx(body["load_w_l1"] / 120, abs=0.1)
+    assert body["load_a_l2"] == pytest.approx(body["load_w_l2"] / 120, abs=0.1)
 
 
 def test_settings_has_no_credentials(client):
@@ -63,6 +68,17 @@ def test_settings_has_no_credentials(client):
     flat = json.dumps(body)
     assert "192.168" not in flat  # no stick IP
     assert "serial" not in flat
+
+
+def test_settings_sun_events_but_no_coordinates(client):
+    """Settings carries upcoming sun events for the burn-down demo, but the
+    raw lat/long never leaves the machine via the API."""
+    body = client.get("/api/settings").json()
+    assert body["sun_events"], "expected at least one sun event in the next 24h"
+    assert {e["type"] for e in body["sun_events"]} <= {"sunrise", "sunset"}
+    flat = json.dumps(body)
+    assert "45.04" not in flat and "-79.31" not in flat
+    assert "lat" not in flat and "lon" not in flat
 
 
 def test_recent_samples_capped_and_trimmed(client):
@@ -123,6 +139,10 @@ def test_outage_payload_when_on_battery(tmp_path):
     assert body["outage"]["active"] is True
     assert body["outage"]["elapsed_s"] > 0
     assert body["outage"]["runtime_remaining_h"] is not None
+    # Burn-down markers: sun events present, in the future, sorted.
+    suns = body["outage"]["sun_events"]
+    assert suns and all(e["ts"] > clock.t for e in suns)
+    assert suns == sorted(suns, key=lambda e: e["ts"])
 
 
 def test_drain_rate_is_outage_wide_and_sane(tmp_path):

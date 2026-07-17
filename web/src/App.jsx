@@ -12,6 +12,7 @@ import Outage from "./pages/Outage";
 // History carries ECharts: code-split so Home/Outage (the pages that matter
 // in an emergency) never pay for the chart library at startup.
 const History = lazy(() => import("./pages/History"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 export default function App() {
   const { state, ageS, connected } = useLiveState();
@@ -84,6 +85,14 @@ export default function App() {
                 }
               >
                 <History stale={stale} />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <Suspense fallback={null}>
+                <Settings />
               </Suspense>
             }
           />

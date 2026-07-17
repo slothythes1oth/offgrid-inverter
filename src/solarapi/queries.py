@@ -196,6 +196,14 @@ def settings_payload(cfg: Config) -> dict:
             "bypass_w_per_leg": round(cfg.thresholds.bypass_amps_per_leg * NOMINAL_LEG_V),
         },
         "timezone": cfg.tou.timezone,
+        # Config-default TOU rates: the rates editor shows these as the
+        # baseline that query-param overrides replace.
+        "tou_rates": {
+            "off_peak": cfg.tou.rates_cents_per_kwh.off_peak,
+            "mid_peak": cfg.tou.rates_cents_per_kwh.mid_peak,
+            "on_peak": cfg.tou.rates_cents_per_kwh.on_peak,
+            "all_in_override": cfg.tou.all_in_override_cents_per_kwh,
+        },
         # Real sun events here too, so the demo/simulated outage review can
         # show tonight's actual sunrise without a live outage in the DB.
         "sun_events": next_sun_events(cfg.location.lat, cfg.location.lon, time.time()),

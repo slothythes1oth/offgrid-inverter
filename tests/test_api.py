@@ -65,6 +65,7 @@ def test_current_shape(client):
 def test_settings_has_no_credentials(client):
     body = client.get("/api/settings").json()
     assert "battery" in body and "thresholds" in body
+    assert body["tou_rates"]["off_peak"] == 9.8  # defaults for the rates editor
     flat = json.dumps(body)
     assert "192.168" not in flat  # no stick IP
     assert "serial" not in flat

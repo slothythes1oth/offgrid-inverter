@@ -49,7 +49,9 @@ function visiblePeaks(peaks, windowKey, t0, t1) {
   return [...byTs.values()];
 }
 
-export default function LoadProfile({ stale = false }) {
+// `focus` ({from, to, label}) pins the chart to a specific span — how the
+// calendar heatmap opens a tapped day's load profile (SPEC 8B.5).
+export default function LoadProfile({ stale = false, focus = null, onClearFocus = null }) {
   const [windowKey, setWindowKey] = useState("24h");
   const [payload, setPayload] = useState(null);
   const [drill, setDrill] = useState(null); // finer payload for a zoomed span
@@ -66,14 +68,17 @@ export default function LoadProfile({ stale = false }) {
     setLoading(true);
     setDrill(null);
     setZoomed(false);
-    getJSON(`/api/history/load?window=${windowKey}`)
+    const url = focus
+      ? `/api/history/load?from=${focus.from}&to=${focus.to}`
+      : `/api/history/load?window=${windowKey}`;
+    getJSON(url)
       .then((d) => alive && setPayload(d))
       .catch(() => alive && setPayload(null))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [windowKey]);
+  }, [windowKey, focus]);
 
   const active = drill ?? payload;
   payloadRef.current = payload;
@@ -199,7 +204,19 @@ export default function LoadProfile({ stale = false }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      {focus && (
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium tnum">{focus.label}</span>
+          <button
+            onClick={onClearFocus}
+            className="px-3 rounded-lg text-sm border border-border"
+            style={{ minHeight: "2.35rem", color: "var(--accent)" }}
+          >
+            back to windows
+          </button>
+        </div>
+      )}
+      <div className="flex items-center justify-between mb-2" style={focus ? { display: "none" } : undefined}>
         <div className="flex rounded-lg overflow-hidden border border-border" role="tablist">
           {WINDOWS.map((w) => (
             <button

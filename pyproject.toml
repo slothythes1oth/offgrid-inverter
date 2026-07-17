@@ -12,14 +12,23 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Web dashboard (phase 2). Kept out of the base install so the collector,
+# which must never depend on the web layer, stays lean. Plain uvicorn (not
+# [standard]) to avoid heavyweight extras; SSE is just HTTP streaming.
+web = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.4",
     "black>=24.0",
+    "httpx>=0.27",  # FastAPI TestClient
 ]
 
 [project.scripts]
 solarmon-collector = "solarmon.main:main"
+solarmon-web = "solarapi.__main__:main"
 
 [build-system]
 requires = ["setuptools>=68"]

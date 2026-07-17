@@ -73,6 +73,22 @@ Machine state enum (0x0210): 0 Power-up delay, 1 Waiting, 2 Initialization,
   trusting the direction label. A robust dashboard can instead infer direction
   from the power balance (PV + grid vs load) rather than the current sign.
 
+## Observed 2026-07-17 during the dashboard build (collector's first live poll)
+
+- **Battery current sign CONFIRMED both directions.** On grid, charging:
+  0x0102 read **-14.7 A** (negative) while the bank charged at ~795 W.
+  Combined with the earlier off-grid observation (positive while
+  discharging): **positive = discharge, negative = charge**. The open item
+  below is resolved; flow direction in the dashboard still uses power
+  balance as designed.
+- **Machine state enum appears shifted -2 vs the SRNE doc on this unit.**
+  Off-grid inverting read state **3** (SRNE: "Soft start"); on-grid charging
+  read state **2** (SRNE: "Initialization"). Consistent hypothesis: this
+  unit reports Mains powered = 2, Inverter powered = 3. The collector treats
+  {3, 5} as inverting and {2, 4} as mains so outage detection works under
+  either encoding.
+- Grid voltage registers are per-leg (~120 V each), not line-to-line.
+
 ## Confirmed live snapshot (2026-07-17, off-grid)
 
 SOC 96%, battery 52.8 V / ~11 A discharging (~600 W), PV 0 W, grid 0 V,

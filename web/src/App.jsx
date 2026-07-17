@@ -1,12 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 import { Freshness } from "./components/primitives";
+import TabBar from "./components/TabBar";
 import { fmtAge } from "./format";
 import { useLiveState } from "./hooks/useLiveState";
 import Gallery from "./pages/Gallery";
 import Home from "./pages/Home";
 import Outage from "./pages/Outage";
+
+// History carries ECharts: code-split so Home/Outage (the pages that matter
+// in an emergency) never pay for the chart library at startup.
+const History = lazy(() => import("./pages/History"));
 
 export default function App() {
   const { state, ageS, connected } = useLiveState();
@@ -68,9 +73,24 @@ export default function App() {
             }
           />
           <Route path="/outage" element={<Outage state={state} stale={stale} ageText={ageText} />} />
+          <Route
+            path="/history"
+            element={
+              <Suspense
+                fallback={
+                  <div className="max-w-md mx-auto w-full">
+                    <div className="chart-skeleton w-full" style={{ height: 320 }} />
+                  </div>
+                }
+              >
+                <History stale={stale} />
+              </Suspense>
+            }
+          />
           <Route path="/gallery" element={<Gallery />} />
         </Routes>
       </main>
+      {!outageActive && <TabBar />}
     </div>
   );
 }

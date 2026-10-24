@@ -18,7 +18,7 @@ from solarmon.fake_source import FakeSource
 
 
 @pytest.fixture
-def seeded_db(tmp_path):
+def seeded_db(tmp_path, monkeypatch):
     """A DB with a short on-grid run, returned as a path + config pointing at it."""
     db = tmp_path / "api.db"
     conn = open_for_collector(db)
@@ -29,6 +29,8 @@ def seeded_db(tmp_path):
     col = Collector(cfg, conn, src, now_fn=clock)
     col.startup()
     run_polls(col, clock, 5)
+    # API queries and SSE must use the same clock as the seeded samples.
+    monkeypatch.setattr("time.time", clock)
     conn.close()
     return db, clock.t
 
